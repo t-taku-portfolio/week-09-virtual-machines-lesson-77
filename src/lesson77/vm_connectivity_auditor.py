@@ -29,14 +29,14 @@ def validate_private_key_permissions(file_path: str) -> bool:
         status = "OK"
         message = "Only owner has read"
         is_secure = True
-        
+
     # check if only owner has read-write
     elif parms == 0o600:
         status = "OK"
         message = "Only owner has read-write"
         is_secure = True
 
-    # Owner hasnot read, or group/others have permissions
+    # Owner does not have read, or group/others have permissions
     else:
         status = "ERROR"
         message = f"Invalid permissions: {oct(parms)}"
