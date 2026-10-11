@@ -1,4 +1,5 @@
 import os
+import socket
 from pathlib import Path
 
 
@@ -45,12 +46,48 @@ def validate_private_key_permissions(file_path: str) -> bool:
     print(f"status: {status}, key_file: {key_file}, message: {message}")
     return is_secure
 
+
+
 def audit_security_group_ports(inbound_rules: list) -> dict:
-    # Evaluates firewall rules and flags any public access (0.0.0.0/0) on management ports 22, 3389, and database ports.
-    return
+    """
+    Evaluates firewall rules and flags any public access (0.0.0.0/0) on management ports 22, 3389, and database ports.
+    The scheme refers to Azure Network Security Group
+    """
+
+    DANGEROUS_PORTS = [22, 3389, 3306, 5432]
+    audit_findings = []
+
+    for rule in inbound_rules:
+        port = rule.get("destinationPortRange")
+        cidr = rule.get("sourceAddressPrefix")
+        action = rule.get("access", "").upper()
+    
+
+        if (action == "ALLOW") and (cidr == "0.0.0.0/0" or cidr == "Internet") and (port in DANGEROUS_PORTS):
+            audit_findings.append({
+                "rule_name" : rule.get("name"),
+                "port" : port,
+                "severity" : "CRITICAL",
+                "message" : f"Port {port} is open to 0.0.0.0/0. Brute force vulnerability"
+            })
+
+    return audit_findings
+
+
 
 def test_vm_tcp_port(ip_address: str, port: int, timeout: float= 3.0) -> bool:
     # Attempts a TCP connection check to confirm web (Port 80) or SSH (Port 22) availability.
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    try:
+        sock.connect(("", 80))
+    
+
+    # Check if port 80 available
+
+    # Check if port 22 available
+
     return
 
 
