@@ -78,17 +78,31 @@ def audit_security_group_ports(inbound_rules: list) -> dict:
 def test_vm_tcp_port(ip_address: str, port: int, timeout: float= 3.0) -> bool:
     # Attempts a TCP connection check to confirm web (Port 80) or SSH (Port 22) availability.
 
+    is_port80_available = False
+    is_port22_available = False
+
+    target_address = None # I need to modify this later
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
-    try:
-        sock.connect(("", 80))
     
-
     # Check if port 80 available
+    try:
+        sock.connect((target_address, 80))
+        sock.close()
+        is_port80_available = True
+    except:
+        is_port80_available = False
 
     # Check if port 22 available
+    try:
+        sock.connect((target_address, 22))
+        sock.close()
+        is_port22_available = True
+    except:
+        is_port22_available = False
 
-    return
+    return is_port80_available and is_port22_available
 
 
 
