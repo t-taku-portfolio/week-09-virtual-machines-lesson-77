@@ -3,8 +3,40 @@ import socket
 from pathlib import Path
 
 
+# REVIEW: `any` is the builtin function, not a type. Use typing.Any (or int | str).
+def is_port_in_dangerous(port_range: any, dangerous_ports: list) -> bool:
+    """
+    Audit the port range, and check if they are included in dangerous ports.
+    Port range is expressed as integer or range. For example, 22 or "8000-8080".
+    """
+
+    # REVIEW: the str branch has no final `return False`, so a non-matching range returns None instead of bool.
+    # REVIEW: a single port string such as "22" raises IndexError at port_list[1].
+
+    # check if it specifies all ports
+    if port_range == "*":
+        return True
+    # check if it is single port as int
+    elif isinstance(port_range, int):
+        return port_range in dangerous_ports
+    # check if it is ports as range. i.e, "20-22" as a str
+    elif isinstance(port_range, str):
+        port_list = port_range.split("-")
+        for the_dangerous_port in dangerous_ports:
+            if (int(port_list[0]) <= dangerous_ports <= int(port_list[1])):
+                return True
+        # the range does not include dangerous port
+        return False 
+    else:
+        return False
+
+
+
+# REVIEW: PEP 8 expects two blank lines before a top-level def.
 def validate_private_key_permissions(file_path: str) -> bool:
     # Verifies that a given private key file has secure permissions (0o400 or 0o600) and is not readable by group/others.
+
+
     status = "ERROR"
     key_file = None
     message = "Empty message"
@@ -48,65 +80,87 @@ def validate_private_key_permissions(file_path: str) -> bool:
 
 
 
-def audit_security_group_ports(inbound_rules: list) -> dict:
+def audit_security_group_ports(inbound_rules: dict) -> list:
     """
-    Evaluates firewall rules and flags any public access (0.0.0.0/0) on management ports 22, 3389, and database ports.
+    Evaluates firewall rules and flags any public access (0.0.0.0/0) on management ports 22, 3389, and database ports. 
+    Inbound traffic from 0.0.0.0/0 to administrativr ports should be denied.
     The scheme refers to Azure Network Security Group
     """
 
+     
+    # REVIEW: docstring typo "administrativr" should be "administrative". Trailing spaces on the docstring's first line, and the whitespace-only line below the docstring, should be removed.
     DANGEROUS_PORTS = [22, 3389, 3306, 5432]
     audit_findings = []
 
     for rule in inbound_rules:
-        port = rule.get("destinationPortRange")
+        is_port_a_list = None
+
+        # if the parameter has single port range
+        if "destinationPortRange" in rule:
+            port = rule.get("destinationPortRange")
+            is_port_a_list = False
+
+        # if the parameter has a list of port range
+        elif "destinationPortRanges" in rule:
+            port = rule.get("destinationPortRanges")
+            is_port_a_list = True
+
         cidr = rule.get("sourceAddressPrefix")
         action = rule.get("access", "").upper()
     
+        # REVIEW: Azure rules can use `destinationPortRanges` (a list) instead of `destinationPortRange`. This loop ignores it, so those rules are skipped silently.
+        # REVIEW: if a rule has no port, `port` is None and the check returns False. Acceptable, but consider logging it.
 
-        if (action == "ALLOW") and (cidr == "0.0.0.0/0" or cidr == "Internet") and (port in DANGEROUS_PORTS):
-            audit_findings.append({
-                "rule_name" : rule.get("name"),
-                "port" : port,
-                "severity" : "CRITICAL",
-                "message" : f"Port {port} is open to 0.0.0.0/0. Brute force vulnerability"
-            })
+        if is_port_a_list:
+            for the_port in port:
+                involve_dangerous_port = is_port_in_dangerous(port_range=the_port, dangerous_ports=DANGEROUS_PORTS)
+
+                if (action == "ALLOW") and (cidr == "0.0.0.0/0" or cidr == "Internet") and involve_dangerous_port:
+                    audit_findings.append({
+                        "rule_name" : rule.get("name"),
+                        "port" : the_port,
+                        "severity" : "CRITICAL",
+                        "message" : f"Port {port} is open to 0.0.0.0/0. Brute force vulnerability"
+                    })
+        else:
+            involve_dangerous_port = is_port_in_dangerous(port_range=port, dangerous_ports=DANGEROUS_PORTS)
+
+            if (action == "ALLOW") and (cidr == "0.0.0.0/0" or cidr == "Internet") and involve_dangerous_port:
+                audit_findings.append({
+                    "rule_name" : rule.get("name"),
+                    "port" : port,
+                    "severity" : "CRITICAL",
+                    "message" : f"Port {port} is open to 0.0.0.0/0. Brute force vulnerability"
+                })
 
     return audit_findings
 
 
 
 def test_vm_tcp_port(ip_address: str, port: int, timeout: float= 3.0) -> bool:
-    # Attempts a TCP connection check to confirm web (Port 80) or SSH (Port 22) availability.
-
-    is_port80_available = False
-    is_port22_available = False
-
-    target_address = None # I need to modify this later
+    # Attempts a TCP connection check to confirm like web (Port 80) and SSH (Port 22) availability.
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
-    
-    # Check if port 80 available
-    try:
-        sock.connect((target_address, 80))
-        sock.close()
-        is_port80_available = True
-    except:
-        is_port80_available = False
 
-    # Check if port 22 available
-    try:
-        sock.connect((target_address, 22))
-        sock.close()
-        is_port22_available = True
-    except:
-        is_port22_available = False
-
-    return is_port80_available and is_port22_available
+    with socket.create_connection((ip_address, port), timeout) as sock:
+        try:
+            sock.connect((ip_address, port))
+            return True
+        except (ConnectionRefusedError, OSError):
+            return False
 
 
 
 if __name__ == "__main__":
     print(validate_private_key_permissions(Path.cwd() / "src" / "lesson77" / "vm_connectivity_auditor.py"))
+
+    # REVIEW: this demo checks the .py file itself, so it will normally print False. Use a real key file to test it.
+    # REVIEW: the commented-out lines are dead code. Also, audit_security_group_ports() needs an argument, so uncommenting it as-is raises TypeError. Remove them.
+    # nsg = []
+    # audit_security_group_ports()
+    # REVIEW: the nested double quotes inside the f-string need Python 3.12+ (PEP 701). Use single quotes inside for older versions. Also fix `port= 20` spacing.
+    print(f"is port20 available: {test_vm_tcp_port(ip_address= "127.0.0.1", port= 20)}")
+    print(f"is port80 available: {test_vm_tcp_port(ip_address= "127.0.0.1", port= 80)}")
 
 # Save the execution result into a formatted JSON report: vm_audit_report.json
