@@ -22,11 +22,8 @@ def is_port_in_dangerous(port_range: any, dangerous_ports: list) -> bool:
     # check if it is ports as range. i.e, "20-22" as a str
     elif isinstance(port_range, str):
         port_list = port_range.split("-")
-        for the_dangerous_port in dangerous_ports:
-            if (int(port_list[0]) <= dangerous_ports <= int(port_list[1])):
-                return True
-        # the range does not include dangerous port
-        return False 
+        # combination with chained comparison and generator expression, any function
+        return any(int(port_list[0]) <= the_dangerous_port <= int(port_list[1]) for the_dangerous_port in dangerous_ports)
     else:
         return False
 
@@ -80,7 +77,7 @@ def validate_private_key_permissions(file_path: str) -> bool:
 
 
 
-def audit_security_group_ports(inbound_rules: dict) -> list:
+def audit_security_group_ports(inbound_rules: list) -> dict:
     """
     Evaluates firewall rules and flags any public access (0.0.0.0/0) on management ports 22, 3389, and database ports. 
     Inbound traffic from 0.0.0.0/0 to administrativr ports should be denied.
