@@ -21,9 +21,15 @@ def is_port_in_dangerous(port_range: any, dangerous_ports: list) -> bool:
         return port_range in dangerous_ports
     # check if it is ports as range. i.e, "20-22" as a str
     elif isinstance(port_range, str):
-        port_list = port_range.split("-")
-        # combination with chained comparison and generator expression, any function
-        return any(int(port_list[0]) <= the_dangerous_port <= int(port_list[1]) for the_dangerous_port in dangerous_ports)
+        if any("-" in port_range):
+            port_list = port_range.split("-")
+            # combination with chained comparison and generator expression, any function
+            return any(int(port_list[0]) <= the_dangerous_port <= int(port_list[1]) for the_dangerous_port in dangerous_ports)
+        else:
+            for the_dangerous_port in dangerous_ports:
+                if port_range == the_dangerous_port:
+                    return True
+        
     else:
         return False
 
@@ -77,7 +83,7 @@ def validate_private_key_permissions(file_path: str) -> bool:
 
 
 
-def audit_security_group_ports(inbound_rules: list) -> dict:
+def audit_security_group_ports(inbound_rules: list) -> list:
     """
     Evaluates firewall rules and flags any public access (0.0.0.0/0) on management ports 22, 3389, and database ports. 
     Inbound traffic from 0.0.0.0/0 to administrativr ports should be denied.
@@ -91,19 +97,28 @@ def audit_security_group_ports(inbound_rules: list) -> dict:
 
     for rule in inbound_rules:
         is_port_a_list = None
+        properties_dict = rule.get("properties")
 
         # if the parameter has single port range
         if "destinationPortRange" in rule:
-            port = rule.get("destinationPortRange")
+            port = properties_dict.get("destinationPortRange")
             is_port_a_list = False
 
         # if the parameter has a list of port range
         elif "destinationPortRanges" in rule:
-            port = rule.get("destinationPortRanges")
+            port = properties_dict.get("destinationPortRanges")
             is_port_a_list = True
 
-        cidr = rule.get("sourceAddressPrefix")
-        action = rule.get("access", "").upper()
+        else:
+            audit_findings.append({
+                "rule_name" : rule.get("name"),
+                "port" : "None",
+                "severity" : "",
+                "message" : "The rule does not have port setting"
+            })
+
+        cidr = properties_dict.get("sourceAddressPrefix")
+        action = properties_dict.get("access", "").upper()
     
         # REVIEW: Azure rules can use `destinationPortRanges` (a list) instead of `destinationPortRange`. This loop ignores it, so those rules are skipped silently.
         # REVIEW: if a rule has no port, `port` is None and the check returns False. Acceptable, but consider logging it.
@@ -136,9 +151,6 @@ def audit_security_group_ports(inbound_rules: list) -> dict:
 
 def test_vm_tcp_port(ip_address: str, port: int, timeout: float= 3.0) -> bool:
     # Attempts a TCP connection check to confirm like web (Port 80) and SSH (Port 22) availability.
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(timeout)
 
     with socket.create_connection((ip_address, port), timeout) as sock:
         try:
