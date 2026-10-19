@@ -26,12 +26,9 @@ def is_port_in_dangerous(port_range: any, dangerous_ports: list) -> bool:
             # combination with chained comparison and generator expression, any function
             return any(int(port_list[0]) <= the_dangerous_port <= int(port_list[1]) for the_dangerous_port in dangerous_ports)
         else:
-            for the_dangerous_port in dangerous_ports:
-                if port_range == the_dangerous_port:
-                    return True
+            return int(port_range) in dangerous_ports
         
-    else:
-        return False
+    return False
 
 
 
@@ -152,9 +149,8 @@ def audit_security_group_ports(inbound_rules: list) -> list:
 def test_vm_tcp_port(ip_address: str, port: int, timeout: float= 3.0) -> bool:
     # Attempts a TCP connection check to confirm like web (Port 80) and SSH (Port 22) availability.
 
-    with socket.create_connection((ip_address, port), timeout) as sock:
+    with socket.create_connection((ip_address, port), timeout):
         try:
-            sock.connect((ip_address, port))
             return True
         except (ConnectionRefusedError, OSError):
             return False
