@@ -21,7 +21,7 @@ def is_port_in_dangerous(port_range: any, dangerous_ports: list) -> bool:
         return port_range in dangerous_ports
     # check if it is ports as range. i.e, "20-22" as a str
     elif isinstance(port_range, str):
-        if any("-" in port_range):
+        if "-" in port_range:
             port_list = port_range.split("-")
             # combination with chained comparison and generator expression, any function
             return any(int(port_list[0]) <= the_dangerous_port <= int(port_list[1]) for the_dangerous_port in dangerous_ports)
