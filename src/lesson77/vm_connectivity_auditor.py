@@ -100,12 +100,12 @@ def audit_security_group_ports(inbound_rules: list) -> list:
         properties_dict = rule.get("properties")
 
         # if the parameter has single port range
-        if "destinationPortRange" in rule:
+        if "destinationPortRange" in properties_dict:
             port = properties_dict.get("destinationPortRange")
             is_port_a_list = False
 
         # if the parameter has a list of port range
-        elif "destinationPortRanges" in rule:
+        elif "destinationPortRanges" in properties_dict:
             port = properties_dict.get("destinationPortRanges")
             is_port_a_list = True
 
