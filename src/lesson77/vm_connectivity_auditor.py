@@ -1,5 +1,8 @@
+import datetime
+import json
 import os
 import socket
+import zoneinfo
 from pathlib import Path
 
 
@@ -144,9 +147,33 @@ def test_vm_tcp_port(ip_address: str, port: int, timeout: float= 3.0) -> bool:
 
 
 
-if __name__ == "__main__":
-    print(validate_private_key_permissions(Path.cwd() / "src" / "lesson77" / "vm_connectivity_auditor.py"))
-    print(f'is port20 available: {test_vm_tcp_port(ip_address= "127.0.0.1", port= 20)}')
-    print(f'is port80 available: {test_vm_tcp_port(ip_address= "127.0.0.1", port= 80)}')
+def save_as_json(obj_dict:dict, target_dir= None)-> str:
 
+    JAPAN_TOKYO = zoneinfo.ZoneInfo("Asia/Tokyo")
+    timestamp = datetime.datetime.now(JAPAN_TOKYO).strftime("%Y_%m_%d")
+    obj_dict["timestamp"] = timestamp
+
+    if target_dir is None:
+        target_dir = Path.cwd()
+    file_path = Path(target_dir) / "vm_audit_report.json"
+
+    try:
+        with open(file_path, "w") as f:
+            json.dump(obj= obj_dict, fp= f, indent= 4)
+    except FileNotFoundError:
+        print("Target directory is not found")
+        raise
+
+    return file_path
+
+
+
+if __name__ == "__main__":
+    json_dict = {
+        "private" : validate_private_key_permissions(Path.cwd() / "src" / "lesson77" / "vm_connectivity_auditor.py"),
+        "is port20 available" : test_vm_tcp_port(ip_address= "127.0.0.1", port= 20),
+        "is port80 available" : test_vm_tcp_port(ip_address= "127.0.0.1", port= 80)
+    }
+
+    save_as_json(json_dict)
 # Save the execution result into a formatted JSON report: vm_audit_report.json
