@@ -3,15 +3,11 @@ import socket
 from pathlib import Path
 
 
-# REVIEW: `any` is the builtin function, not a type. Use typing.Any (or int | str).
 def is_port_in_dangerous(port_range: any, dangerous_ports: list) -> bool:
     """
     Audit the port range, and check if they are included in dangerous ports.
     Port range is expressed as integer or range. For example, 22 or "8000-8080".
     """
-
-    # REVIEW: the str branch has no final `return False`, so a non-matching range returns None instead of bool.
-    # REVIEW: a single port string such as "22" raises IndexError at port_list[1].
 
     # check if it specifies all ports
     if port_range == "*":
@@ -94,7 +90,7 @@ def audit_security_group_ports(inbound_rules: list) -> list:
 
     for rule in inbound_rules:
         is_port_a_list = None
-        properties_dict = rule.get("properties")
+        properties_dict = rule.get("properties", {})
 
         # if the parameter has single port range
         if "destinationPortRange" in properties_dict:
