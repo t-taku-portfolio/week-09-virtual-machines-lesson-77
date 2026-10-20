@@ -28,7 +28,6 @@ def is_port_in_dangerous(port_range: any, dangerous_ports: list) -> bool:
 
 
 
-# REVIEW: PEP 8 expects two blank lines before a top-level def.
 def validate_private_key_permissions(file_path: str) -> bool:
     # Verifies that a given private key file has secure permissions (0o400 or 0o600) and is not readable by group/others.
 
@@ -78,13 +77,10 @@ def validate_private_key_permissions(file_path: str) -> bool:
 
 def audit_security_group_ports(inbound_rules: list) -> list:
     """
-    Evaluates firewall rules and flags any public access (0.0.0.0/0) on management ports 22, 3389, and database ports. 
-    Inbound traffic from 0.0.0.0/0 to administrativr ports should be denied.
-    The scheme refers to Azure Network Security Group
+    Evaluates firewall rules and flags any public access (0.0.0.0/0) on management ports 22, 3389, and database ports. Inbound traffic from 0.0.0.0/0 to administrative ports should be denied. The scheme refers to Azure Network Security Group
     """
 
-     
-    # REVIEW: docstring typo "administrativr" should be "administrative". Trailing spaces on the docstring's first line, and the whitespace-only line below the docstring, should be removed.
+
     DANGEROUS_PORTS = [22, 3389, 3306, 5432]
     audit_findings = []
 
@@ -105,17 +101,12 @@ def audit_security_group_ports(inbound_rules: list) -> list:
         else:
             audit_findings.append({
                 "rule_name" : rule.get("name"),
-                "port" : "None",
-                "severity" : "",
                 "message" : "The rule does not have port setting"
             })
 
         cidr = properties_dict.get("sourceAddressPrefix")
         action = properties_dict.get("access", "").upper()
     
-        # REVIEW: Azure rules can use `destinationPortRanges` (a list) instead of `destinationPortRange`. This loop ignores it, so those rules are skipped silently.
-        # REVIEW: if a rule has no port, `port` is None and the check returns False. Acceptable, but consider logging it.
-
         if is_port_a_list:
             for the_port in port:
                 involve_dangerous_port = is_port_in_dangerous(port_range=the_port, dangerous_ports=DANGEROUS_PORTS)
@@ -155,13 +146,7 @@ def test_vm_tcp_port(ip_address: str, port: int, timeout: float= 3.0) -> bool:
 
 if __name__ == "__main__":
     print(validate_private_key_permissions(Path.cwd() / "src" / "lesson77" / "vm_connectivity_auditor.py"))
-
-    # REVIEW: this demo checks the .py file itself, so it will normally print False. Use a real key file to test it.
-    # REVIEW: the commented-out lines are dead code. Also, audit_security_group_ports() needs an argument, so uncommenting it as-is raises TypeError. Remove them.
-    # nsg = []
-    # audit_security_group_ports()
-    # REVIEW: the nested double quotes inside the f-string need Python 3.12+ (PEP 701). Use single quotes inside for older versions. Also fix `port= 20` spacing.
-    print(f"is port20 available: {test_vm_tcp_port(ip_address= "127.0.0.1", port= 20)}")
-    print(f"is port80 available: {test_vm_tcp_port(ip_address= "127.0.0.1", port= 80)}")
+    print(f'is port20 available: {test_vm_tcp_port(ip_address= "127.0.0.1", port= 20)}')
+    print(f'is port80 available: {test_vm_tcp_port(ip_address= "127.0.0.1", port= 80)}')
 
 # Save the execution result into a formatted JSON report: vm_audit_report.json
